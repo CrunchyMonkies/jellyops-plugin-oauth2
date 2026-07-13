@@ -61,9 +61,12 @@ jobs:
           cp publish/meta.json plugin/meta.json
           cp scripts/firstrun.sh plugin/firstrun.sh
           chmod +x plugin/firstrun.sh
-          # Fail the build if host assemblies leaked into the payload.
-          if ls plugin/MediaBrowser.* plugin/Emby.* >/dev/null 2>&1; then
-            echo "host assemblies leaked into payload" >&2; exit 1
+          # Fail the build if host assemblies leaked into the payload. Use find, not `ls` with
+          # multiple globs — a single non-matching glob makes ls exit non-zero and masks real leaks.
+          leaked="$(find plugin -maxdepth 1 -type f \( -name 'Emby.*' -o -name 'MediaBrowser.*' \
+            -o \( -name 'Jellyfin.*' -a ! -name 'Jellyfin.Plugin.OAuth2*' \) \))"
+          if [ -n "$leaked" ]; then
+            echo "host assemblies leaked into payload:" >&2; echo "$leaked" >&2; exit 1
           fi
           echo "Payload:"; ls -1 plugin
 

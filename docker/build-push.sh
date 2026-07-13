@@ -56,9 +56,14 @@ chmod +x "$CTX/plugin/firstrun.sh"
 test -f "$CTX/plugin/Jellyfin.Plugin.OAuth2.dll" || { echo "!! plugin DLL missing from payload" >&2; exit 1; }
 test -f "$CTX/plugin/meta.json"                  || { echo "!! meta.json missing from payload"  >&2; exit 1; }
 test -f "$CTX/plugin/firstrun.sh"                || { echo "!! firstrun.sh missing from payload" >&2; exit 1; }
-# Host assemblies must NOT ship (type-identity conflicts in the plugin ALC).
-if ls "$CTX/plugin/"MediaBrowser.* "$CTX/plugin/"Jellyfin.[!P]* "$CTX/plugin/"Emby.* >/dev/null 2>&1; then
-  echo "!! host assemblies leaked into payload — StripHostAssemblies failed" >&2; exit 1
+# Host assemblies must NOT ship (type-identity conflicts in the plugin ALC). Use find, not `ls`
+# with multiple globs — a single non-matching glob makes ls exit non-zero and masks real leaks.
+LEAKED="$(find "$CTX/plugin" -maxdepth 1 -type f \( -name 'Emby.*' -o -name 'MediaBrowser.*' \
+  -o \( -name 'Jellyfin.*' -a ! -name 'Jellyfin.Plugin.OAuth2*' \) \) 2>/dev/null)"
+if [ -n "$LEAKED" ]; then
+  echo "!! host assemblies leaked into payload — StripHostAssemblies failed:" >&2
+  echo "$LEAKED" >&2
+  exit 1
 fi
 echo ">> Payload contents:"
 ( cd "$CTX/plugin" && ls -1 )

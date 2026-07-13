@@ -59,12 +59,27 @@
     identity in the plugin's load context. Strip them, keeping only our own assembly and the
     third-party OIDC deps the host does NOT provide (Microsoft.IdentityModel.*, System.IdentityModel.*).
   -->
-  <Target Name="StripHostAssemblies" AfterTargets="Build;Publish">
+  <Target Name="StripHostAssemblies" AfterTargets="Build">
     <ItemGroup>
       <_HostAssemblies Include="$(OutDir)Emby.*;$(OutDir)Jellyfin.*;$(OutDir)MediaBrowser.*"
                        Exclude="$(OutDir)Jellyfin.Plugin.OAuth2*" />
     </ItemGroup>
     <Delete Files="@(_HostAssemblies)" />
+  </Target>
+
+  <!--
+    `dotnet publish` emits the FULL dependency closure, which drags in transitive host assemblies
+    (Jellyfin.Data, Jellyfin.Database.Implementations, Emby.Naming, Jellyfin.Extensions,
+    Jellyfin.MediaEncoding.Keyframes, …) even though the direct refs are Private=false. Shipping
+    these causes duplicate type identity in the plugin ALC (e.g. two `User` types), which breaks
+    interface implementation at load time. Strip them from the publish output too.
+  -->
+  <Target Name="StripHostAssembliesFromPublish" AfterTargets="Publish">
+    <ItemGroup>
+      <_PubHostAssemblies Include="$(PublishDir)Emby.*;$(PublishDir)Jellyfin.*;$(PublishDir)MediaBrowser.*"
+                          Exclude="$(PublishDir)Jellyfin.Plugin.OAuth2*" />
+    </ItemGroup>
+    <Delete Files="@(_PubHostAssemblies)" />
   </Target>
 
 </Project>
