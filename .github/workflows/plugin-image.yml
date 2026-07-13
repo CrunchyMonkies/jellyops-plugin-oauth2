@@ -1,0 +1,110 @@
+name: Build & Publish Plugin Image
+
+# Compiles the Keycloak SSO plugin (src/Plugin) against the Jellyfin v12 (.NET 10)
+# assemblies, strips host assemblies, and packages the payload into a FROM-scratch
+# image-volume payload pushed to GHCR. The image is built with provenance disabled
+# so the kubelet mounts it cleanly as an image volume.
+#
+# The plugin references a sibling checkout of jellyfin-src; this workflow checks it
+# out next to the plugin repo and points the build at it via JELLYFIN_SRC.
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      jellyfin_src_ref:
+        description: "jellyfin-src ref (branch/tag) to build against"
+        required: true
+        default: "main"
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}/plugin
+  JELLYFIN_SRC_REPO: CrunchyMonkies/jellyfin-src
+  JELLYFIN_SRC_REF: ${{ github.event.inputs.jellyfin_src_ref || 'main' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout plugin repo
+        uses: actions/checkout@v4
+        with:
+          path: plugin-repo
+
+      - name: Checkout jellyfin-src (sibling)
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.JELLYFIN_SRC_REPO }}
+          ref: ${{ env.JELLYFIN_SRC_REF }}
+          token: ${{ secrets.JELLYFIN_SRC_TOKEN || secrets.GITHUB_TOKEN }}
+          path: jellyfin-src
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Publish plugin payload
+        working-directory: plugin-repo
+        env:
+          JELLYFIN_SRC: ${{ github.workspace }}/jellyfin-src
+        run: |
+          dotnet publish src/Plugin/Jellyfin.Plugin.OAuth2.csproj -c Release -o publish -v minimal
+          mkdir -p plugin
+          cp publish/*.dll plugin/
+          cp publish/meta.json plugin/meta.json
+          cp scripts/firstrun.sh plugin/firstrun.sh
+          chmod +x plugin/firstrun.sh
+          # Fail the build if host assemblies leaked into the payload.
+          if ls plugin/MediaBrowser.* plugin/Emby.* >/dev/null 2>&1; then
+            echo "host assemblies leaked into payload" >&2; exit 1
+          fi
+          echo "Payload:"; ls -1 plugin
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=ref,event=tag
+            type=raw,value=latest
+
+      - name: Build & push (provenance disabled)
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: plugin-repo
+          file: plugin-repo/docker/Dockerfile.plugin
+          push: true
+          provenance: false
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Summary
+        run: |
+          {
+            echo "### Keycloak SSO plugin image published"
+            echo ""
+            echo "- Built against: \`${JELLYFIN_SRC_REPO}\` @ \`${JELLYFIN_SRC_REF}\`"
+            echo "- Digest: \`${{ steps.build.outputs.digest }}\`"
+            echo ""
+            echo "Pin in \`k8s/30-jellyfinplugin.yaml\` (spec.pluginImage.reference):"
+            echo ""
+            echo '```'
+            echo "${IMAGE}@${{ steps.build.outputs.digest }}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,23 @@
+# Plugin-only OCI image: the image-volume payload consumed by JellyOps.
+#
+# The filesystem ROOT *is* the contents of the Jellyfin plugin directory —
+# meta.json + Jellyfin.Plugin.OAuth2.dll + the third-party OIDC/JWT assemblies
+# (Microsoft.IdentityModel.*, System.IdentityModel.Tokens.Jwt) + the firstrun.sh
+# hook. The payload is produced by docker/build-push.sh (dotnet publish of
+# src/Plugin, host assemblies stripped) into `plugin/` — nothing is compiled here.
+#
+# JellyOps mounts the image read-only and, with `injection: imageVolumeCopy`,
+# copies the root into `/config/plugins/KeycloakSSO_<version>/` via a staging
+# init container so Jellyfin can write meta.json status at runtime.
+#
+# No base image is needed — image volumes mount the layer filesystem directly.
+FROM scratch
+
+# Files at root; the JellyfinPlugin CR sets no subPath, so the operator copies
+# `<image>/.` -> `<plugins>/KeycloakSSO_<version>/`. The whole payload is the plugin dir.
+COPY plugin/ /
+
+# Self-description consumed by the operator / for humans.
+LABEL io.jellyops.plugin.guid="f1e2d3c4-b5a6-4978-8a9b-0c1d2e3f4a5b" \
+      io.jellyops.plugin.name="Keycloak SSO" \
+      io.jellyops.plugin.version="0.0.1.0"

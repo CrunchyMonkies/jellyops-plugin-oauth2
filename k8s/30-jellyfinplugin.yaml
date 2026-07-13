@@ -1,0 +1,76 @@
+# The Keycloak SSO plugin, delivered by JellyOps to the home-media instance.
+#
+# - pluginImage: the plugin-only image-volume payload (meta.json + Jellyfin.Plugin.OAuth2.dll +
+#   the Microsoft.IdentityModel.* / System.IdentityModel.Tokens.Jwt DLLs + firstrun.sh at root).
+#   injection: imageVolumeCopy stages it into a writable /config/plugins dir so Jellyfin can write
+#   the plugin's meta.json status and the firstrun hook can seed the config XML.
+# - install: supplies env/Secret to the baked firstrun.sh hook (auto-run once by the operator),
+#   which writes /config/plugins/configurations/Jellyfin.Plugin.OAuth2.xml from these values.
+#
+# EXTERNAL Keycloak: no companion workload/Service — Keycloak runs elsewhere and is referenced by
+# issuer URL only. (Contrast jellyops-plugin-shoko, which ships a Shoko Server companion.)
+#
+# The pluginImage reference is pinned by digest — replace REPLACE_ME_WITH_DIGEST with the @sha256
+# value printed by docker/build-push.sh (or the CI job summary).
+apiVersion: jellyfin.jellyops.io/v1alpha1
+kind: JellyfinPlugin
+metadata:
+  name: keycloak-sso
+  namespace: media
+  labels:
+    jellyfin.jellyops.io/instance: home-media
+spec:
+  jellyfinRef:
+    name: home-media
+  pluginImage:
+    reference: ghcr.io/crunchymonkies/jellyops-plugin-oauth2/plugin@sha256:REPLACE_ME_WITH_DIGEST
+    pullPolicy: IfNotPresent
+  # Copy the read-only image payload into the writable plugins dir so Jellyfin/firstrun can write.
+  injection: imageVolumeCopy
+  install:
+    # firstrun.sh (baked in the image) seeds Jellyfin.Plugin.OAuth2.xml from these env vars.
+    # Jellyfin boots even if seeding fails, so the admin can complete config in the dashboard.
+    failurePolicy: Ignore
+    timeoutSeconds: 120
+    env:
+      - name: OIDC_ISSUER
+        valueFrom:
+          secretKeyRef:
+            name: oidc-creds
+            key: issuer
+      - name: OIDC_CLIENT_ID
+        valueFrom:
+          secretKeyRef:
+            name: oidc-creds
+            key: client-id
+      - name: OIDC_CLIENT_SECRET
+        valueFrom:
+          secretKeyRef:
+            name: oidc-creds
+            key: client-secret
+      # Optional tuning (uncomment / adjust as needed):
+      - name: OIDC_SCOPES
+        value: "openid profile email"
+      - name: OIDC_USERNAME_CLAIM
+        value: "preferred_username"
+      # Roles are read from the OIDC UserInfo endpoint; realm_access.roles is Keycloak's default.
+      - name: OIDC_ROLE_CLAIM
+        value: "realm_access.roles"
+      # If set, only users holding one of these roles may sign in (others get 403, no account made).
+      # Leave unset/empty to allow any authenticated Keycloak user.
+      - name: OIDC_ALLOWED_ROLES
+        value: "jellyfin"
+      # Comma-separated Keycloak roles that grant Jellyfin administrator rights (also implies allowed).
+      - name: OIDC_ADMIN_ROLES
+        value: "jellyfin-admin"
+      # Absolute public origin of Jellyfin; used to build the OAuth2 redirect_uri behind a gateway.
+      - name: OIDC_PUBLIC_ORIGIN
+        value: "https://jellyfin.example.com"
+      - name: OIDC_ENABLE_PROVISIONING
+        value: "true"
+      - name: OIDC_SYNC_ROLES
+        value: "true"
+      # Informational only — the actual auto-login redirect is toggled on the Jellyfin CR at
+      # spec.gateway.sso.autoLoginRedirect (see the operator). Keep in sync for the settings page.
+      - name: OIDC_AUTO_LOGIN
+        value: "true"

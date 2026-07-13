@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Keycloak SSO</title>
+</head>
+<body>
+<div id="ssoConfigPage" data-role="page" class="page type-interior pluginConfigurationPage"
+     data-require="emby-input,emby-button,emby-checkbox">
+    <div data-role="content">
+        <div class="content-primary">
+            <form id="ssoConfigForm">
+                <div class="verticalSection">
+                    <div class="sectionTitleContainer flex align-items-center">
+                        <h2 class="sectionTitle">Keycloak SSO</h2>
+                    </div>
+
+                    <div class="fieldDescription" style="margin-bottom:1em;">
+                        Configure the external Keycloak realm used for single sign-on. These values are
+                        usually seeded by the JellyOps plugin CR (from env/Secrets); edits here override
+                        the stored plugin configuration.
+                    </div>
+
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="ssoIssuer">OIDC issuer (realm URL)</label>
+                        <input id="ssoIssuer" type="text" class="emby-input" placeholder="https://keycloak.example.com/realms/media" />
+                        <div class="fieldDescription">The realm base URL. The plugin appends /.well-known/openid-configuration.</div>
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="ssoClientId">Client ID</label>
+                        <input id="ssoClientId" type="text" class="emby-input" />
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="ssoClientSecret">Client secret</label>
+                        <input id="ssoClientSecret" type="password" class="emby-input" autocomplete="new-password" />
+                        <div class="fieldDescription">Leave blank to keep the currently stored secret.</div>
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="ssoScopes">Scopes</label>
+                        <input id="ssoScopes" type="text" class="emby-input" placeholder="openid profile email" />
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="ssoUsernameClaim">Username claim</label>
+                        <input id="ssoUsernameClaim" type="text" class="emby-input" placeholder="preferred_username" />
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="ssoRoleClaim">Role claim (UserInfo)</label>
+                        <input id="ssoRoleClaim" type="text" class="emby-input" placeholder="realm_access.roles" />
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="ssoAllowedRoles">Allowed roles (comma separated)</label>
+                        <input id="ssoAllowedRoles" type="text" class="emby-input" placeholder="jellyfin" />
+                        <div class="fieldDescription">If set, only users holding one of these roles may sign in (others are refused). Leave blank to allow any authenticated Keycloak user.</div>
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="ssoAdminRoles">Admin roles (comma separated)</label>
+                        <input id="ssoAdminRoles" type="text" class="emby-input" placeholder="jellyfin-admin, admin" />
+                        <div class="fieldDescription">Users whose roles contain any of these become Jellyfin administrators (also counts as allowed).</div>
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="ssoPublicOrigin">Public origin (optional)</label>
+                        <input id="ssoPublicOrigin" type="text" class="emby-input" placeholder="https://jellyfin.example.com" />
+                        <div class="fieldDescription">Used to build the redirect_uri behind a gateway. Leave blank to derive from the request.</div>
+                    </div>
+
+                    <label style="display:block;margin:0.6em 0;">
+                        <input type="checkbox" is="emby-checkbox" id="ssoProvision" />
+                        <span>Auto-create Jellyfin users on first Keycloak login</span>
+                    </label>
+                    <label style="display:block;margin:0.6em 0;">
+                        <input type="checkbox" is="emby-checkbox" id="ssoSyncRoles" />
+                        <span>Re-apply admin/role mapping on every login</span>
+                    </label>
+
+                    <div class="fieldDescription" style="margin-top:1em;">
+                        Gateway auto-login redirect is controlled by the JellyOps operator
+                        (<code>spec.gateway.sso.autoLoginRedirect</code>) — not here. Current status:
+                        <strong id="ssoAutoLoginStatus">unknown</strong>.
+                    </div>
+
+                    <button is="emby-button" type="submit" class="raised button-submit block emby-button" style="margin-top:1em;">
+                        <span>Save</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        (function () {
+            var PLUGIN_ID = 'f1e2d3c4-b5a6-4978-8a9b-0c1d2e3f4a5b';
+
+            function el(id, ctx) { return (ctx || document).querySelector(id); }
+
+            function load(page) {
+                Dashboard.showLoadingMsg();
+                ApiClient.getPluginConfiguration(PLUGIN_ID).then(function (config) {
+                    el('#ssoIssuer', page).value = config.OidcIssuer || '';
+                    el('#ssoClientId', page).value = config.ClientId || '';
+                    el('#ssoClientSecret', page).value = ''; // never echo the stored secret
+                    el('#ssoScopes', page).value = config.Scopes || 'openid profile email';
+                    el('#ssoUsernameClaim', page).value = config.UsernameClaim || 'preferred_username';
+                    el('#ssoRoleClaim', page).value = config.RoleClaim || 'realm_access.roles';
+                    el('#ssoAllowedRoles', page).value = (config.AllowedRoles || []).join(', ');
+                    el('#ssoAdminRoles', page).value = (config.AdminRoles || []).join(', ');
+                    el('#ssoPublicOrigin', page).value = config.PublicOrigin || '';
+                    el('#ssoProvision', page).checked = config.EnableUserProvisioning !== false;
+                    el('#ssoSyncRoles', page).checked = config.SyncRolesOnLogin !== false;
+                    el('#ssoAutoLoginStatus', page).textContent = config.AutoLoginEnabled ? 'enabled' : 'disabled';
+                    Dashboard.hideLoadingMsg();
+                }).catch(function (err) {
+                    Dashboard.hideLoadingMsg();
+                    Dashboard.alert({ message: 'Failed to load Keycloak SSO settings: ' + (err && err.message ? err.message : err) });
+                });
+            }
+
+            function save(page) {
+                Dashboard.showLoadingMsg();
+                ApiClient.getPluginConfiguration(PLUGIN_ID).then(function (config) {
+                    config.OidcIssuer = el('#ssoIssuer', page).value.trim();
+                    config.ClientId = el('#ssoClientId', page).value.trim();
+                    var secret = el('#ssoClientSecret', page).value;
+                    if (secret) { config.ClientSecret = secret; } // blank keeps the stored value
+                    config.Scopes = el('#ssoScopes', page).value.trim() || 'openid profile email';
+                    config.UsernameClaim = el('#ssoUsernameClaim', page).value.trim() || 'preferred_username';
+                    config.RoleClaim = el('#ssoRoleClaim', page).value.trim() || 'realm_access.roles';
+                    var splitRoles = function (id) {
+                        return el(id, page).value.split(',')
+                            .map(function (s) { return s.trim(); })
+                            .filter(function (s) { return s.length > 0; });
+                    };
+                    config.AllowedRoles = splitRoles('#ssoAllowedRoles');
+                    config.AdminRoles = splitRoles('#ssoAdminRoles');
+                    config.PublicOrigin = el('#ssoPublicOrigin', page).value.trim();
+                    config.EnableUserProvisioning = el('#ssoProvision', page).checked;
+                    config.SyncRolesOnLogin = el('#ssoSyncRoles', page).checked;
+                    ApiClient.updatePluginConfiguration(PLUGIN_ID, config).then(function (result) {
+                        Dashboard.processPluginConfigurationUpdateResult(result);
+                    });
+                });
+            }
+
+            var page = document.querySelector('#ssoConfigPage');
+            page.addEventListener('pageshow', function () { load(this); });
+            el('#ssoConfigForm', page).addEventListener('submit', function (e) {
+                save(page); e.preventDefault(); return false;
+            });
+        })();
+    </script>
+</div>
+</body>
+</html>

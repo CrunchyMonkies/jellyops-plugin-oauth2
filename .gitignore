@@ -1,0 +1,10 @@
+# Build output
+bin/
+obj/
+publish/
+# Assembled image payload (produced by docker/build-push.sh / CI)
+plugin/
+# Local secrets — never commit real credentials
+*.local.yaml
+# Tooling / orchestration state
+.omc/

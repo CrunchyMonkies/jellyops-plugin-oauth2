@@ -1,0 +1,70 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Jellyfin.Plugin.OAuth2</RootNamespace>
+    <AssemblyName>Jellyfin.Plugin.OAuth2</AssemblyName>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <!-- Plugins load into their own AssemblyLoadContext: third-party package DLLs the host does
+         not provide (the Microsoft.IdentityModel.* / System.IdentityModel.Tokens.Jwt OIDC stack)
+         must be physically copied next to the plugin. -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <!--
+    The OAuth2/OIDC controller endpoints are hosted by the Jellyfin ASP.NET pipeline; a
+    FrameworkReference to Microsoft.AspNetCore.App gives us ControllerBase / MVC types. The
+    IdentityModel packages provide OIDC discovery, JWKS retrieval and id_token validation.
+  -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.IdentityModel.Protocols.OpenIdConnect" Version="8.3.0" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.3.0" />
+  </ItemGroup>
+
+  <!--
+    Compile against the EXACT Jellyfin assemblies the running server loads, but do NOT ship copies
+    (Private=false + ExcludeAssets=runtime). Shipping duplicate MediaBrowser.* DLLs causes
+    type-identity conflicts when the host loads the plugin.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="../../../jellyfin-src/MediaBrowser.Controller/MediaBrowser.Controller.csproj">
+      <Private>false</Private>
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </ProjectReference>
+    <ProjectReference Include="../../../jellyfin-src/MediaBrowser.Common/MediaBrowser.Common.csproj">
+      <Private>false</Private>
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </ProjectReference>
+    <ProjectReference Include="../../../jellyfin-src/MediaBrowser.Model/MediaBrowser.Model.csproj">
+      <Private>false</Private>
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </ProjectReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="meta.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- Settings page served by the Jellyfin dashboard (IHasWebPages). -->
+  <ItemGroup>
+    <EmbeddedResource Include="Configuration\configPage.html" />
+  </ItemGroup>
+
+  <!--
+    The host already loads all Jellyfin/Emby/MediaBrowser assemblies. CopyLocalLockFileAssemblies
+    and transitive project outputs drag copies into our output; shipping them risks duplicate type
+    identity in the plugin's load context. Strip them, keeping only our own assembly and the
+    third-party OIDC deps the host does NOT provide (Microsoft.IdentityModel.*, System.IdentityModel.*).
+  -->
+  <Target Name="StripHostAssemblies" AfterTargets="Build;Publish">
+    <ItemGroup>
+      <_HostAssemblies Include="$(OutDir)Emby.*;$(OutDir)Jellyfin.*;$(OutDir)MediaBrowser.*"
+                       Exclude="$(OutDir)Jellyfin.Plugin.OAuth2*" />
+    </ItemGroup>
+    <Delete Files="@(_HostAssemblies)" />
+  </Target>
+
+</Project>
