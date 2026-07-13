@@ -5,8 +5,13 @@ name: Build & Publish Plugin Image
 # image-volume payload pushed to GHCR. The image is built with provenance disabled
 # so the kubelet mounts it cleanly as an image volume.
 #
-# The plugin references a sibling checkout of jellyfin-src; this workflow checks it
-# out next to the plugin repo and points the build at it via JELLYFIN_SRC.
+# The plugin compiles against the Jellyfin fork's assemblies, so this workflow checks
+# out CrunchyMonkies/jellyfin as a sibling (dir name `jellyfin-src`, matching the csproj's
+# ../../../jellyfin-src relative ProjectReferences) at the tag the deployed server runs.
+#
+# REQUIRED repo secret: JELLYFIN_SRC_TOKEN — a PAT with `contents:read` on the PRIVATE
+# CrunchyMonkies/jellyfin repo. The default GITHUB_TOKEN cannot read another private repo,
+# so the cross-repo checkout fails without this secret.
 
 on:
   push:
@@ -15,9 +20,9 @@ on:
   workflow_dispatch:
     inputs:
       jellyfin_src_ref:
-        description: "jellyfin-src ref (branch/tag) to build against"
+        description: "CrunchyMonkies/jellyfin ref (branch/tag) to build against"
         required: true
-        default: "main"
+        default: "v12.0.0-rc2-jc-0.2.0"
 
 permissions:
   contents: read
@@ -25,8 +30,12 @@ permissions:
 
 env:
   IMAGE: ghcr.io/${{ github.repository }}/plugin
-  JELLYFIN_SRC_REPO: CrunchyMonkies/jellyfin-src
-  JELLYFIN_SRC_REF: ${{ github.event.inputs.jellyfin_src_ref || 'main' }}
+  # The CrunchyMonkies Jellyfin v12 fork (private). The local working dir is named
+  # `jellyfin-src`, but the GitHub repo is `jellyfin`.
+  JELLYFIN_SRC_REPO: CrunchyMonkies/jellyfin
+  # Build against the exact tag the deployed server image (…/jellyfin:v12.0.0-rc2-jc-0.2.0)
+  # was built from, so the plugin's compiled ABI matches the running host.
+  JELLYFIN_SRC_REF: ${{ github.event.inputs.jellyfin_src_ref || 'v12.0.0-rc2-jc-0.2.0' }}
 
 jobs:
   build:

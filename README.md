@@ -99,4 +99,19 @@ spec:
       # authorizePath: /sso/authorize  # default
 ```
 
+## Releasing (CI)
+
+`.github/workflows/plugin-image.yml` builds the plugin and pushes the image to
+`ghcr.io/<owner>/jellyops-plugin-oauth2/plugin` on any `v*` tag push (or manual
+`workflow_dispatch`). It compiles against the private `CrunchyMonkies/jellyfin` fork at tag
+`v12.0.0-rc2-jc-0.2.0` (the ref the deployed server is built from).
+
+**Required repo secret — `JELLYFIN_SRC_TOKEN`**: a Personal Access Token with `contents:read` on
+`CrunchyMonkies/jellyfin`. The built-in `GITHUB_TOKEN` cannot read a *different* private repo, so the
+cross-repo checkout fails without it. Add it under *Settings → Secrets and variables → Actions*.
+
+```bash
+git tag v0.1.0 && git push origin v0.1.0   # -> CI publishes ghcr.io/<owner>/jellyops-plugin-oauth2/plugin:v0.1.0
+```
+
 See `docs/specification.md` for the full design.
