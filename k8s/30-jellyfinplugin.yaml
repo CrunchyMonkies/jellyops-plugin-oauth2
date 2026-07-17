@@ -23,7 +23,7 @@ spec:
   jellyfinRef:
     name: home-media
   pluginImage:
-    reference: ghcr.io/crunchymonkies/jellyops-plugin-oauth2/plugin@sha256:REPLACE_ME_WITH_DIGEST
+    reference: ghcr.io/crunchymonkies/jellyops-plugin-oauth2/plugin@sha256:08ad7fe768e9ca55da1a8793a04fb7d6a3522e0bb03711547e60bac0c293bc7c
     pullPolicy: IfNotPresent
   # Copy the read-only image payload into the writable plugins dir so Jellyfin/firstrun can write.
   injection: imageVolumeCopy
