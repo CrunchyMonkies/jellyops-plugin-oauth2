@@ -22,6 +22,13 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="Microsoft.IdentityModel.Protocols.OpenIdConnect" Version="8.3.0" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.3.0" />
+    <!--
+      Bind to the HOST's Newtonsoft.Json (the server ships Newtonsoft.Json.dll) rather than shipping
+      our own copy (ExcludeAssets=runtime). The File Transformation plugin's cross-plugin entrypoint
+      is PluginInterface.RegisterTransformation(JObject); the JObject we build must be the SAME type
+      identity the host/FT load, so all three must share one Newtonsoft assembly.
+    -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" ExcludeAssets="runtime" />
   </ItemGroup>
 
   <!--
@@ -51,6 +58,8 @@
   <!-- Settings page served by the Jellyfin dashboard (IHasWebPages). -->
   <ItemGroup>
     <EmbeddedResource Include="Configuration\configPage.html" />
+    <!-- Login-button client script, served by GET /sso/ClientScript. -->
+    <EmbeddedResource Include="Web\loginButton.js" />
   </ItemGroup>
 
   <!--

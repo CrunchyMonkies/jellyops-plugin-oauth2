@@ -20,4 +20,4 @@ COPY plugin/ /
 # Self-description consumed by the operator / for humans.
 LABEL io.jellyops.plugin.guid="f1e2d3c4-b5a6-4978-8a9b-0c1d2e3f4a5b" \
       io.jellyops.plugin.name="Keycloak SSO" \
-      io.jellyops.plugin.version="0.0.1.0"
+      io.jellyops.plugin.version="0.0.2.0"

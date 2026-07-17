@@ -1,5 +1,7 @@
 using System;
+using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
@@ -38,6 +40,10 @@ public sealed class OidcController : ControllerBase
     private readonly IServerApplicationHost _appHost;
     private readonly ILogger<OidcController> _logger;
 
+    // The login-button client script is a static embedded resource; load and cache it once.
+    private static readonly Lazy<string> ClientScript =
+        new(LoadClientScript, LazyThreadSafetyMode.ExecutionAndPublication);
+
     /// <summary>
     /// Initializes a new instance of the <see cref="OidcController"/> class.
     /// </summary>
@@ -68,6 +74,44 @@ public sealed class OidcController : ControllerBase
 
     private static PluginConfiguration Config =>
         Plugin.Instance?.Configuration ?? throw new InvalidOperationException("Plugin not initialised.");
+
+    /// <summary>
+    /// Serves the client script that injects the "Sign in with SSO" button onto the Jellyfin web
+    /// login page. Injected into <c>index.html</c> by the File Transformation plugin. A short config
+    /// prelude carries the enable flag and button label so the static script needs no extra request.
+    /// </summary>
+    /// <returns>The login-button JavaScript.</returns>
+    [HttpGet("ClientScript")]
+    [Produces("text/javascript")]
+    public ActionResult GetClientScript()
+    {
+        var prelude = "window.__ssoLoginButton = "
+            + JsonSerializer.Serialize(
+                new { enabled = Config.EnableLoginButton, label = Config.LoginButtonText },
+                new JsonSerializerOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping })
+            + ";\n";
+        var body = prelude + ClientScript.Value;
+
+        var etag = "\"" + Convert.ToBase64String(SHA256.HashData(Encoding.UTF8.GetBytes(body)))[..16] + "\"";
+        if (string.Equals(Request.Headers.IfNoneMatch, etag, StringComparison.Ordinal))
+        {
+            return StatusCode(StatusCodes.Status304NotModified);
+        }
+
+        Response.Headers.CacheControl = "no-cache";
+        Response.Headers.ETag = etag;
+        return Content(body, "text/javascript");
+    }
+
+    private static string LoadClientScript()
+    {
+        const string ResourceName = "Jellyfin.Plugin.OAuth2.Web.loginButton.js";
+        var assembly = typeof(OidcController).Assembly;
+        using var stream = assembly.GetManifestResourceStream(ResourceName)
+            ?? throw new InvalidOperationException($"Embedded resource '{ResourceName}' not found.");
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd();
+    }
 
     /// <summary>
     /// Begins the Keycloak Authorization-Code flow (with PKCE) by redirecting the browser to the

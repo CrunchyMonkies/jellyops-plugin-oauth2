@@ -80,4 +80,16 @@ public class PluginConfiguration : BasePluginConfiguration
     /// on the settings page so admins can see the expected behaviour.
     /// </summary>
     public bool AutoLoginEnabled { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether a "Sign in with SSO" button is injected onto the
+    /// Jellyfin web login page. Requires the File Transformation plugin to be installed; when it is
+    /// absent no button appears regardless of this setting.
+    /// </summary>
+    public bool EnableLoginButton { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets the label shown on the injected SSO login button.
+    /// </summary>
+    public string LoginButtonText { get; set; } = "Sign in with SSO";
 }

@@ -70,6 +70,17 @@
                         <input type="checkbox" is="emby-checkbox" id="ssoSyncRoles" />
                         <span>Re-apply admin/role mapping on every login</span>
                     </label>
+                    <label style="display:block;margin:0.6em 0;">
+                        <input type="checkbox" is="emby-checkbox" id="ssoLoginButton" />
+                        <span>Show a "Sign in with SSO" button on the login page</span>
+                    </label>
+                    <div class="fieldDescription" style="margin-bottom:1em;">
+                        Requires the File Transformation plugin. When it is not installed no button appears.
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="ssoLoginButtonText">Login button label</label>
+                        <input id="ssoLoginButtonText" type="text" class="emby-input" placeholder="Sign in with SSO" />
+                    </div>
 
                     <div class="fieldDescription" style="margin-top:1em;">
                         Gateway auto-login redirect is controlled by the JellyOps operator
@@ -105,6 +116,8 @@
                     el('#ssoPublicOrigin', page).value = config.PublicOrigin || '';
                     el('#ssoProvision', page).checked = config.EnableUserProvisioning !== false;
                     el('#ssoSyncRoles', page).checked = config.SyncRolesOnLogin !== false;
+                    el('#ssoLoginButton', page).checked = config.EnableLoginButton !== false;
+                    el('#ssoLoginButtonText', page).value = config.LoginButtonText || 'Sign in with SSO';
                     el('#ssoAutoLoginStatus', page).textContent = config.AutoLoginEnabled ? 'enabled' : 'disabled';
                     Dashboard.hideLoadingMsg();
                 }).catch(function (err) {
@@ -133,6 +146,8 @@
                     config.PublicOrigin = el('#ssoPublicOrigin', page).value.trim();
                     config.EnableUserProvisioning = el('#ssoProvision', page).checked;
                     config.SyncRolesOnLogin = el('#ssoSyncRoles', page).checked;
+                    config.EnableLoginButton = el('#ssoLoginButton', page).checked;
+                    config.LoginButtonText = el('#ssoLoginButtonText', page).value.trim() || 'Sign in with SSO';
                     ApiClient.updatePluginConfiguration(PLUGIN_ID, config).then(function (result) {
                         Dashboard.processPluginConfigurationUpdateResult(result);
                     });
