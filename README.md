@@ -104,7 +104,7 @@ spec:
 `.github/workflows/plugin-image.yml` builds the plugin and pushes the image to
 `ghcr.io/<owner>/jellyops-plugin-oauth2/plugin` on any `v*` tag push (or manual
 `workflow_dispatch`). It compiles against the private `CrunchyMonkies/jellyfin` fork at tag
-`v12.0.0-rc2-jc-0.2.0` (the ref the deployed server is built from).
+`v12.0.0-rc3-jc-0.2.1` (the ref the deployed server is built from).
 
 **Required repo secret — `JELLYFIN_SRC_TOKEN`**: a Personal Access Token with `contents:read` on
 `CrunchyMonkies/jellyfin`. The built-in `GITHUB_TOKEN` cannot read a *different* private repo, so the
