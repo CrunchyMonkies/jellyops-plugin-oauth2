@@ -5,7 +5,7 @@ with auto-login** to a JellyOps-managed **Jellyfin v12 (.NET 10)** instance as a
 custom resource.
 
 Unlike the community `9p4/jellyfin-plugin-sso` (which targets Jellyfin 10.x), this plugin is built
-fresh for the Jellyfin **v12 ABI (`12.0.0.0`, `net10.0`)** used across the JellyOps workspace, and
+fresh for the Jellyfin **v12.3 ABI (`12.3.0.0`, `net10.0`)** used across the JellyOps workspace, and
 is packaged as an OCI **image-volume** payload rather than a classic plugin zip.
 
 ## How it works
@@ -104,7 +104,14 @@ spec:
 `.github/workflows/plugin-image.yml` builds the plugin and pushes the image to
 `ghcr.io/<owner>/jellyops-plugin-oauth2/plugin` on any `v*` tag push (or manual
 `workflow_dispatch`). It compiles against the private `CrunchyMonkies/jellyfin` fork at tag
-`v12.0.0-rc3-jc-0.2.1` (the ref the deployed server is built from).
+`v12.3-jc-0.2.4` (the ref the deployed server is built from).
+
+The matching host images (the plugin's `targetAbi` `12.3.0.0` must be <= the server's ABI):
+
+```
+ghcr.io/crunchymonkies/jellyfin:v12.3-jc-0.2.4@sha256:7987029edd1f264cf86b16148a004fe07d038ba92e9459c2685bf3f61c3d08c0
+ghcr.io/crunchymonkies/jellyfin-web:v12.3-jc-0.2.4@sha256:0ae44037c98ab15907bc2105f27c9613f49611c8765117c8302c7b1f8fea213d
+```
 
 **Required repo secret — `JELLYFIN_SRC_TOKEN`**: a Personal Access Token with `contents:read` on
 `CrunchyMonkies/jellyfin`. The built-in `GITHUB_TOKEN` cannot read a *different* private repo, so the

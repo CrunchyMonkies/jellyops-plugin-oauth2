@@ -28,8 +28,8 @@ spec:
   meta:
     guid: f1e2d3c4-b5a6-4978-8a9b-0c1d2e3f4a5b
     name: "Keycloak SSO"
-    version: "0.0.2.1"
-    targetAbi: "12.0.0.0"
+    version: "0.0.3.0"
+    targetAbi: "12.3.0.0"
   # Copy the read-only image payload into the writable plugins dir so Jellyfin/firstrun can write.
   injection: imageVolumeCopy
   install:
