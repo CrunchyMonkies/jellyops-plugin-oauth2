@@ -23,7 +23,7 @@ spec:
   jellyfinRef:
     name: home-media
   pluginImage:
-    reference: ghcr.io/crunchymonkies/jellyops-plugin-oauth2/plugin@sha256:61082b7d0abbd4972ab24cd4dd606c499b86f1905ed59ef6d5f1d760f49b4f77
+    reference: ghcr.io/crunchymonkies/jellyops-plugin-oauth2/plugin@sha256:6bb5ab5f87441c8e6e693f5d73e463583c2f72cef60459c2b59aebf0dbe9ba5f
     pullPolicy: IfNotPresent
   meta:
     guid: f1e2d3c4-b5a6-4978-8a9b-0c1d2e3f4a5b
